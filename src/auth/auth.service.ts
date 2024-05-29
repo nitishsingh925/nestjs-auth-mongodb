@@ -1,26 +1,25 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import { CreateAuthDto } from './dto/create-auth.dto';
-import { UpdateAuthDto } from './dto/update-auth.dto';
+import { InjectModel } from '@nestjs/mongoose';
+import { User } from './schemas/user.schema';
+import { Model } from 'mongoose';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class AuthService {
-  create(createAuthDto: CreateAuthDto) {
-    return 'This action adds a new auth';
-  }
+  constructor(@InjectModel(User.name) private UserMode: Model<User>) {}
 
-  findAll() {
-    return `This action returns all auth`;
-  }
+  async signup(signupDto: CreateAuthDto) {
+    const { name, email, password } = signupDto;
+    // Check if user already exists
+    const emailExists = await this.UserMode.findOne({ email });
+    if (emailExists) throw new ConflictException('Email already exists');
 
-  findOne(id: number) {
-    return `This action returns a #${id} auth`;
-  }
+    // Hash password
 
-  update(id: number, updateAuthDto: UpdateAuthDto) {
-    return `This action updates a #${id} auth`;
-  }
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-  remove(id: number) {
-    return `This action removes a #${id} auth`;
+    await this.UserMode.create({ name, email, password: hashedPassword });
+    return 'User successfully registered';
   }
 }
