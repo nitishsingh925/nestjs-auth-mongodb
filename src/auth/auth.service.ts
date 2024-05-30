@@ -13,6 +13,7 @@ import { SignInAuthDto } from './dto/signin-auth.dto';
 import { JwtService } from '@nestjs/jwt';
 import { RefreshToken } from './schemas/refresh-token.schema';
 import { v4 as uuidv4 } from 'uuid';
+import { RefreshTokenAuthDto } from './dto/refreshToken-auth.dto';
 
 interface AuthResult {
   accessToken: string;
@@ -66,6 +67,17 @@ export class AuthService {
       accessToken,
       refreshToken,
     };
+  }
+
+  async refreshTokens(refreshTokenAuthDto: RefreshTokenAuthDto) {
+    const token = await this.RefreshTokenModel.findOneAndDelete({
+      token: refreshTokenAuthDto.refreshToken,
+      expiryDate: { $gte: new Date() },
+    });
+
+    if (!token) throw new UnauthorizedException('Invalid refresh token');
+    const userId = token.userId.toString();
+    return this.generateAccessToken({ userId });
   }
 
   async generateAccessToken(user) {
