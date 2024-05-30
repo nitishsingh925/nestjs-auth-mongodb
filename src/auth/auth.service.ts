@@ -11,16 +11,22 @@ import { Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import { SignInAuthDto } from './dto/signin-auth.dto';
 import { JwtService } from '@nestjs/jwt';
+import { RefreshToken } from './schemas/refresh-token.schema';
+import { v4 as uuidv4 } from 'uuid';
 
 interface AuthResult {
   accessToken: string;
   message: string;
+  refreshToken: string;
+  userId: string;
 }
 
 @Injectable()
 export class AuthService {
   constructor(
     @InjectModel(User.name) private UserMode: Model<User>,
+    @InjectModel(RefreshToken.name)
+    private RefreshTokenModel: Model<RefreshToken>,
     private readonly jwtService: JwtService,
   ) {}
 
@@ -51,15 +57,38 @@ export class AuthService {
 
     // Create JWT payload and token
     const payload = { userId: user._id, email };
-    const accessToken = await this.generateAccessToken(payload);
+    const { accessToken, refreshToken } =
+      await this.generateAccessToken(payload);
+
     return {
       message: 'User successfully logged in',
+      userId: String(user._id),
       accessToken,
+      refreshToken,
     };
   }
 
   async generateAccessToken(user) {
     const accessToken = this.jwtService.sign({ user });
-    return accessToken;
+    const refreshToken = uuidv4();
+    await this.storeRefreshToken(refreshToken, user.userId);
+
+    return { accessToken, refreshToken };
+  }
+
+  async storeRefreshToken(token: string, userId) {
+    // Calculate expiry date 3 days from now
+    const expiryDate = new Date();
+    expiryDate.setDate(expiryDate.getDate() + 3);
+
+    // Check if token already exists
+    const TokenExists = await this.RefreshTokenModel.findOne({ userId });
+
+    // Create new token and update existing token
+    if (TokenExists) {
+      await this.RefreshTokenModel.updateOne({ userId }, { token, expiryDate });
+    } else {
+      await this.RefreshTokenModel.create({ token, userId, expiryDate });
+    }
   }
 }

@@ -23,7 +23,9 @@ export class AuthController {
     });
     return res.json({
       message: result.message,
+      userId: result.userId,
       accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
     });
   }
 }
