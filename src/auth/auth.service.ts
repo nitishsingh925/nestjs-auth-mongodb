@@ -93,14 +93,12 @@ export class AuthService {
     const expiryDate = new Date();
     expiryDate.setDate(expiryDate.getDate() + 3);
 
-    // Check if token already exists
-    const TokenExists = await this.RefreshTokenModel.findOne({ userId });
-
-    // Create new token and update existing token
-    if (TokenExists) {
-      await this.RefreshTokenModel.updateOne({ userId }, { token, expiryDate });
-    } else {
-      await this.RefreshTokenModel.create({ token, userId, expiryDate });
-    }
+    await this.RefreshTokenModel.updateOne(
+      {
+        userId,
+      },
+      { $set: { expiryDate, token } },
+      { upsert: true },
+    );
   }
 }
