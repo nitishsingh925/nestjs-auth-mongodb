@@ -69,6 +69,10 @@ export class AuthService {
     };
   }
 
+  async signout(userId: string) {
+    await this.RefreshTokenModel.deleteOne({ userId });
+  }
+
   async refreshTokens(refreshTokenAuthDto: RefreshTokenAuthDto) {
     const token = await this.RefreshTokenModel.findOne({
       token: refreshTokenAuthDto.refreshToken,
