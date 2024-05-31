@@ -70,7 +70,7 @@ export class AuthService {
   }
 
   async refreshTokens(refreshTokenAuthDto: RefreshTokenAuthDto) {
-    const token = await this.RefreshTokenModel.findOneAndDelete({
+    const token = await this.RefreshTokenModel.findOne({
       token: refreshTokenAuthDto.refreshToken,
       expiryDate: { $gte: new Date() },
     });
@@ -83,7 +83,7 @@ export class AuthService {
   async generateAccessToken(user) {
     const accessToken = this.jwtService.sign({ user });
     const refreshToken = uuidv4();
-    await this.storeRefreshToken(refreshToken, user.userId);
+    await this.storeRefreshToken(refreshToken, user.userId.toString());
 
     return { accessToken, refreshToken };
   }
