@@ -22,6 +22,8 @@ interface AuthResult {
   userId: string;
 }
 
+const bcryptSoltRounds = 10;
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -39,7 +41,7 @@ export class AuthService {
 
     // Hash password
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, bcryptSoltRounds);
 
     await this.UserMode.create({ name, email, password: hashedPassword });
     return 'User successfully registered';
@@ -71,6 +73,21 @@ export class AuthService {
 
   async signout(userId: string) {
     await this.RefreshTokenModel.deleteOne({ userId });
+  }
+
+  async changePassword(email, oldPassword: string, newPassword: string) {
+    if (oldPassword === newPassword)
+      throw new UnauthorizedException(
+        'New password cannot be same as old password',
+      );
+    const user = await this.UserMode.findOne({ email });
+    const passwordMatch = await bcrypt.compare(oldPassword, user.password);
+
+    if (!passwordMatch) throw new UnauthorizedException('Wrong Credentials');
+    const hashedPassword = await bcrypt.hash(newPassword, bcryptSoltRounds);
+    user.password = hashedPassword;
+    await user.save();
+    return { message: 'Password changed successfully' };
   }
 
   async refreshTokens(refreshTokenAuthDto: RefreshTokenAuthDto) {
