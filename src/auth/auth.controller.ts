@@ -14,6 +14,8 @@ import { Response } from 'express';
 import { RefreshTokenAuthDto } from './dto/refreshToken-auth.dto';
 import { AuthGuard } from 'src/guards/auth.guard';
 import { ChangePasswordAuthDto } from './dto/changePassword.auth.dto';
+import { ForgotPasswordAuthDto } from './dto/forgotPassword.auth.dto';
+import { resetPasswordAuthDto } from './dto/resetPassword.auth.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -59,6 +61,19 @@ export class AuthController {
       req.user.email,
       ChangePasswordAuthDto.oldPassword,
       ChangePasswordAuthDto.newPassword,
+    );
+  }
+
+  @Post('forgotPassword')
+  async forgotPassword(@Body() forgotPasswordAuthDto: ForgotPasswordAuthDto) {
+    return this.authService.forgotPassword(forgotPasswordAuthDto.email);
+  }
+
+  @Put('resetPassword')
+  async resetPassword(@Body() resetPasswordAuthDto: resetPasswordAuthDto) {
+    return this.authService.resetPassword(
+      resetPasswordAuthDto.newPassword,
+      resetPasswordAuthDto.resetToken,
     );
   }
 

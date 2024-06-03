@@ -1,6 +1,7 @@
 import {
   ConflictException,
   Injectable,
+  InternalServerErrorException,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -14,6 +15,9 @@ import { JwtService } from '@nestjs/jwt';
 import { RefreshToken } from './schemas/refresh-token.schema';
 import { v4 as uuidv4 } from 'uuid';
 import { RefreshTokenAuthDto } from './dto/refreshToken-auth.dto';
+import { ResetToken } from './schemas/reset-token.schema';
+import { MailService } from 'src/services/mail.service';
+import { randomBytes } from 'crypto';
 
 interface AuthResult {
   accessToken: string;
@@ -30,7 +34,10 @@ export class AuthService {
     @InjectModel(User.name) private UserMode: Model<User>,
     @InjectModel(RefreshToken.name)
     private RefreshTokenModel: Model<RefreshToken>,
+    @InjectModel(ResetToken.name)
+    private ResetTokenModel: Model<ResetToken>,
     private readonly jwtService: JwtService,
+    private mailService: MailService,
   ) {}
 
   async signup(signupDto: CreateAuthDto) {
@@ -88,6 +95,41 @@ export class AuthService {
     user.password = hashedPassword;
     await user.save();
     return { message: 'Password changed successfully' };
+  }
+
+  async forgotPassword(email: string) {
+    const user = await this.UserMode.findOne({ email });
+
+    if (user) {
+      const expiryDate = new Date();
+      expiryDate.setHours(expiryDate.getHours() + 1);
+      // Use crypto to generate a secure random token
+      const resetToken = randomBytes(64).toString('hex');
+      await this.ResetTokenModel.create({
+        token: resetToken,
+        userId: String(user._id),
+        expiryDate,
+      });
+
+      this.mailService.sendPasswordResetEmail(email, resetToken);
+    }
+
+    return { message: 'If this email exists, we will send you a reset link' };
+  }
+
+  async resetPassword(newPassword: string, resetToken: string) {
+    // Find the reset token in the database
+    const resetTokenRecord = await this.ResetTokenModel.findOne({
+      token: resetToken,
+      expiryDate: { $gte: new Date() },
+    });
+    if (!resetTokenRecord)
+      throw new UnauthorizedException('Invalid reset link or expired');
+
+    const user = await this.UserMode.findById(resetTokenRecord.userId);
+    if (!user) throw new InternalServerErrorException();
+    user.password = await bcrypt.hash(newPassword, bcryptSoltRounds);
+    await user.save();
   }
 
   async refreshTokens(refreshTokenAuthDto: RefreshTokenAuthDto) {
